@@ -10,7 +10,6 @@ import sys
 import gc
 import os
 import re
-from huggingface_hub import hf_hub_download
 
 try:
     from llama_cpp import Llama
@@ -41,9 +40,41 @@ with open(Path(__file__).parent / "minicpm_config.json", "r", encoding="utf-8") 
     config = json.load(f)
     MODEL_SETTINGS = config["model_settings"]
     PROMPT_TYPES = config.get("prompt_types", {})
-    GGUF_MODELS = config["gguf_models"]
 
 _MODEL_CACHE = {}
+
+def scan_gguf_models():
+    """Scan models/LLM/GGUF recursively for *.gguf LLM files and pair each
+    with the nearest vision projector (mmproj*.gguf): same directory first,
+    then parent directories up to the scan root. Returns a dict of
+    {label: {"model": abs_path_str, "mmproj": abs_path_str}} where label is
+    the model path relative to the GGUF dir without its extension. Re-run by
+    INPUT_TYPES on every UI refresh, so dropping files on disk is enough."""
+    root = (Path(folder_paths.models_dir).resolve() / "LLM" / "GGUF")
+    root.mkdir(parents=True, exist_ok=True)
+    files = sorted(root.rglob("*.gguf"))
+    mmpoj = [p for p in files if "mmproj" in p.name.lower()]
+    found = {}
+    for model_path in files:
+        if "mmproj" in model_path.name.lower():
+            continue
+        mmproj_path = None
+        directory = model_path.parent
+        while mmproj_path is None:
+            for mm in mmpoj:
+                if mm.parent == directory:
+                    mmproj_path = mm
+                    break
+            if mmproj_path is not None or directory == root or root not in directory.parents:
+                break
+            directory = directory.parent
+        if mmproj_path is None:
+            print(f"[MiniCPM GGUF] Skipping {model_path.name}: no mmproj*.gguf pair found")
+            continue
+        label = model_path.relative_to(root).with_suffix("").as_posix()
+        found[label] = {"model": str(model_path), "mmproj": str(mmproj_path)}
+    return found
+
 
 class MiniCPM_GGUF_Models:
     def __init__(self, model: str, processing_mode: str):
@@ -51,64 +82,14 @@ class MiniCPM_GGUF_Models:
             raise RuntimeError(f"llama-cpp-python is not available: {LLAMA_CPP_ERROR}")
 
         try:
-            models_dir = Path(folder_paths.models_dir).resolve()
-            llm_models_dir = (models_dir / "LLM" / "GGUF").resolve()
-            llm_models_dir.mkdir(parents=True, exist_ok=True)
-
-            if "/" not in model:
-                raise ValueError("Invalid model path")
-            repo_path, filename = model.rsplit("/", 1)
-
-            model_config = None
-            model_key = None
-            for key, config in GGUF_MODELS.items():
-                if config["name"] == model:
-                    model_config = config
-                    model_key = key
-                    break
-            
-            if not model_config:
-                raise ValueError(f"Model configuration not found for: {model}")
-
-            if "download_path" in model_config:
-                download_subdir = llm_models_dir / model_config["download_path"]
-            else:
-                download_subdir = llm_models_dir
-            download_subdir.mkdir(parents=True, exist_ok=True)
-
-            model_path = download_subdir / filename
-            if not model_path.exists():
-                print(f"Downloading GGUF model: {filename} (large file, please wait...)")
-                try:
-                    model_path = Path(hf_hub_download(
-                        repo_id=repo_path,
-                        filename=filename,
-                        local_dir=str(download_subdir)
-                    )).resolve()
-                except Exception as e:
-                    print(f"GGUF model download failed: {e}")
-                    raise
-
-            mmproj_filename = model_config.get("mmproj")
-            if not mmproj_filename:
-                if "MiniCPM-V-4.5" in model_key or "4_5" in model:
-                    mmproj_filename = "openbmb/MiniCPM-V-4_5-gguf/mmproj-model-f16.gguf"
-                else:
-                    mmproj_filename = "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf"
-            
-            mmproj_local = download_subdir / Path(mmproj_filename).name
-            if not mmproj_local.exists():
-                print(f"Downloading vision model: {Path(mmproj_filename).name}...")
-                repo_path, filename = mmproj_filename.rsplit("/", 1)
-                try:
-                    mmproj_local = Path(hf_hub_download(
-                        repo_id=repo_path,
-                        filename=filename,
-                        local_dir=str(download_subdir)
-                    )).resolve()
-                except Exception as e:
-                    print(f"Vision model download failed: {e}")
-                    raise
+            entries = scan_gguf_models()
+            if model not in entries:
+                raise ValueError(
+                    f"GGUF model '{model}' not found under models/LLM/GGUF "
+                    f"(available: {', '.join(entries) if entries else 'none'})"
+                )
+            model_path = Path(entries[model]["model"])
+            mmproj_local = Path(entries[model]["mmproj"])
 
             n_ctx = MODEL_SETTINGS["context_window"]
             n_batch = 2048
@@ -308,8 +289,7 @@ class MiniCPM_GGUF_Base:
                 if cache_key in _MODEL_CACHE:
                     self.predictor = _MODEL_CACHE[cache_key]
                 else:
-                    model_name = GGUF_MODELS[model]["name"]
-                    self.predictor = MiniCPM_GGUF_Models(model_name, processing_mode)
+                    self.predictor = MiniCPM_GGUF_Models(model, processing_mode)
                     _MODEL_CACHE[cache_key] = self.predictor
             elif (self.predictor is None or self.current_processing_mode != processing_mode or self.current_model != model):
                 if self.predictor is not None:
@@ -318,8 +298,7 @@ class MiniCPM_GGUF_Base:
                     torch.cuda.empty_cache()
                     gc.collect()
 
-                model_name = GGUF_MODELS[model]["name"]
-                self.predictor = MiniCPM_GGUF_Models(model_name, processing_mode)
+                self.predictor = MiniCPM_GGUF_Models(model, processing_mode)
                 self.current_processing_mode = processing_mode
                 self.current_model = model
 
@@ -392,7 +371,7 @@ class MiniCPM_GGUF_Base:
 class AILab_MiniCPM_V_GGUF(MiniCPM_GGUF_Base):
     @classmethod
     def INPUT_TYPES(cls):
-        model_list = list(GGUF_MODELS.keys())
+        model_list = list(scan_gguf_models().keys())
         return {
             "required": {},
             "optional": {
@@ -417,7 +396,7 @@ class AILab_MiniCPM_V_GGUF(MiniCPM_GGUF_Base):
             if image is None and video is None:
                 return ("Error: Please provide either an image or video input.",)
             pm = ("GPU" if torch.cuda.is_available() else "CPU") if device == "Auto" else device
-            model = model or list(GGUF_MODELS.keys())[0]
+            model = model or next(iter(scan_gguf_models()), "")
             self._load_model(model, pm, memory_management)
             if video is not None:
                 frames = self.encode_video(video, 64)
@@ -454,7 +433,7 @@ class AILab_MiniCPM_V_GGUF(MiniCPM_GGUF_Base):
 class AILab_MiniCPM_V_GGUF_Advanced(MiniCPM_GGUF_Base):
     @classmethod
     def INPUT_TYPES(cls):
-        model_list = list(GGUF_MODELS.keys())
+        model_list = list(scan_gguf_models().keys())
         return {
             "required": {},
             "optional": {
@@ -487,7 +466,7 @@ class AILab_MiniCPM_V_GGUF_Advanced(MiniCPM_GGUF_Base):
             if image is None and video is None:
                 return ("", "Error: Please provide either an image or video input.")
             pm = ("GPU" if torch.cuda.is_available() else "CPU") if device == "Auto" else device
-            model = model or list(GGUF_MODELS.keys())[0]
+            model = model or next(iter(scan_gguf_models()), "")
             self._load_model(model, pm, memory_management)
             if video is not None:
                 frames = self.encode_video(video, video_max_num_frames)

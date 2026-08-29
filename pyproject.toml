@@ -1,7 +1,7 @@
 [project]
 name = "ComfyUI-MiniCPM"
-description = "A custom ComfyUI node for MiniCPM vision-language models, supporting v4, v4.5, and v4 GGUF formats, enabling high-quality image captioning and visual analysis."
-version = "1.1.1"
+description = "A custom ComfyUI node for MiniCPM vision-language models, supporting v4, v4.5, v4.6 and GGUF formats, enabling high-quality image captioning and visual analysis."
+version = "1.1.2"
 license = {file = "LICENSE"}
 
 dependencies = [

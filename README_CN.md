@@ -1,11 +1,12 @@
 # ComfyUI-MiniCPM
 
-一个用于 MiniCPM 视觉语言模型的 ComfyUI 自定义节点，支持 v4、v4.5 及 v4 GGUF 格式，实现高质量图像描述与视觉分析。
+一个用于 MiniCPM 视觉语言模型的 ComfyUI 自定义节点，支持 v4、v4.5、v4.6 及 GGUF 格式，实现高质量图像描述与视觉分析。
 
-**🎉 现在支持 MiniCPM-V-4.5！最新的模型，拥有增强的能力。**
+**🎉 现在支持 MiniCPM-V-4.6！超轻量原生 transformers 模型（约 2.6GB，SigLIP2-400M + Qwen3.5-0.8B），反推提示词又快又省显存。**
 
 ---
 ## 新闻与更新
+- **2026/08/29**：ComfyUI-MiniCPM 更新至 **v1.1.2**（[更新日志](update.md#v112-2026-08-29)）：新增 MiniCPM-V-4.6 支持、downsample_mode 精度开关、GGUF 模型动态扫描
 - **2025/08/28**：ComfyUI-MiniCPM 更新至 **v1.1.1**（[更新日志](update.md#v111-2025-08-28)）
 - **2025/08/27**：ComfyUI-MiniCPM 更新至 **v1.1.0**（[更新日志](https://github.com/1038lab/ComfyUI-MiniMPC/blob/main/update.md#v110-2025-08-27)）
 [![MiniCPM v4 VS v45](example_workflows/MiniCPM_v4VSv45.jpg)](example_workflows/MiniCPM_v4VSv45.json)
@@ -20,15 +21,16 @@
 - MiniCPM-V-4 video
 [![MiniCPM-V-4_video](example_workflows/MiniCPM-V-4_video.jpg)](example_workflows/MiniCPM-V-4_video.json)
 
-- 支持 **MiniCPM-V-4.5 (Transformers)** 和 **MiniCPM-V-4.0 (GGUF)** 模型
-- **最新 MiniCPM-V-4.5** 通过 Transformers 提供增强的能力
+- 支持 **MiniCPM-V-4.6 / 4.5 / 4 (Transformers)** 与**任意本地 GGUF 文件**
+- **最新 MiniCPM-V-4.6** 为原生 transformers 实现（需 `transformers>=5.7`），约 2.6GB，批量反推提示词首选
+- V4.6 新增 **`downsample_mode`（16x/4x）**：4x 视觉细节更多、16x 速度更快
 - 多种描述类型，适用于不同使用场景（描述、标题、分析等）
 - 内存管理选项，平衡显存使用和速度
-- 首次使用时自动下载模型文件，便于设置
+- Transformers 模型首次使用自动下载；GGUF 模型改为从 `models/LLM/GGUF` 动态扫描发现
 - 可自定义参数：最大令牌数、温度、top-p/k 采样、重复惩罚
 - 高级节点，支持全参数控制
 - 向后兼容的旧版节点
-- V4.0 模型的全面 GGUF 量化选项
+- GGUF 下拉列表实时枚举磁盘上所有 `*.gguf`（任意仓库/量化），并自动配对 `mmproj*.gguf` 视觉文件
 
 ---
 
@@ -61,16 +63,20 @@ ComfyUI\python_embeded\python llama_cpp_install.py
 | **MiniCPM-V-4.5**        | 🌟 **最新 V4.5 版本，增强能力** |
 | **MiniCPM-V-4.5-int4**   | 🌟 **V4.5 4位量化版本，内存占用更小** |
 | MiniCPM-V-4          | V4.0 全精度版本，质量更高   |
+| **MiniCPM-V-4.6**    | 🌟 **最新：原生 transformers（>=5.7），约 2.6GB，4x/16x 视觉 token 压缩，速度最快** |
 | MiniCPM-V-4-int4     | V4.0 4位量化版本，内存占用更小 |
 
 https://huggingface.co/openbmb/MiniCPM-V-4_5  
+https://huggingface.co/openbmb/MiniCPM-V-4.6
 https://huggingface.co/openbmb/MiniCPM-V-4_5-int4  
 https://huggingface.co/openbmb/MiniCPM-V-4
 https://huggingface.co/openbmb/MiniCPM-V-4-int4
 
 ### GGUF 模型
 
-> **注意**：由于 llama-cpp-python 兼容性问题，MiniCPM-V-4.5 GGUF 模型暂时不可用。请使用 MiniCPM-V-4.5 Transformers 模型或 MiniCPM-V-4.0 GGUF 模型。
+> **工作方式**：GGUF 节点不再依赖内置下载清单。把任意 `*.gguf` 放到 `models/LLM/GGUF`（可建子目录）后刷新页面即出现在下拉列表；视觉投影（`mmproj*.gguf`）按同目录→逐级父目录自动配对，无配对的文件跳过并打印提示。
+>
+> **V4.5 GGUF**：需要 llama.cpp PR #15575（2025-08-26）之后编译的 llama-cpp-python，旧版会报兼容性错误——可改用 V4.5 Transformers 或重新编译。
 
 #### MiniCPM-V-4.0（完全支持）
 | 模型                | 大小      | 描述                           |
@@ -88,8 +94,8 @@ https://huggingface.co/openbmb/MiniCPM-V-4-int4
 
 https://huggingface.co/openbmb/MiniCPM-V-4-gguf
 
-> 模型将在首次运行时自动下载。
-> 也支持手动下载并放置到 `models/prompt_generator`（transformers）或 `models/LLM/GGUF`（GGUF）目录。
+> Transformers 模型首次使用自动下载到 `models/LLM/<仓库名>`；GGUF 模型不再自动下载。
+> 手动放置同样支持：transformers 放 `models/LLM/<仓库名>`，GGUF 放 `models/LLM/GGUF` 任意子目录（连同其 `mmproj-model-f16.gguf`）。
 
 ---
 
@@ -97,6 +103,7 @@ https://huggingface.co/openbmb/MiniCPM-V-4-gguf
 
 ### 1. MiniCPM-4-V
 - 基础 transformers 节点，包含基本参数
+- V4.6+ 支持 `downsample_mode`（16x/4x），旧模型自动忽略
 - 支持图像和视频输入
 - 内存管理选项
 - 预设提示类型
@@ -110,6 +117,7 @@ https://huggingface.co/openbmb/MiniCPM-V-4-gguf
 ### 3. MiniCPM-4-V-GGUF
 - 基于 GGUF 的节点，包含基本参数
 - 针对性能优化
+- 模型列表从 `models/LLM/GGUF` 动态扫描
 
 ### 4. MiniCPM-4-V-GGUF Advanced
 - 功能完整的 GGUF 节点
@@ -121,7 +129,7 @@ https://huggingface.co/openbmb/MiniCPM-V-4-gguf
 
 1. 在 ComfyUI 的 `🧪AILab` 类别中添加 **MiniCPM** 节点。
 2. 将图像或视频输入节点连接到 MiniCPM 节点。
-3. 选择模型变体（transformers 默认为 MiniCPM-V-4-int4）。
+3. 选择模型变体（transformers 下拉默认为第一项，当前是 MiniCPM-V-4.6）。
 4. 选择描述类型并根据需要调整参数。
 5. 执行您的工作流以生成描述或分析。
 
@@ -174,7 +182,8 @@ https://huggingface.co/openbmb/MiniCPM-V-4-gguf
 
 ## 使用技巧
 
-* 🌟 **优先尝试 MiniCPM-V-4.5 Transformers** - 相比 V4.0 拥有增强的能力
+* 🌟 **MiniCPM-V-4.6**：最快最省（bf16 约 3GB 显存），批量反推提示词首选；打标提速用 16x，追细节用 4x
+* 获得**最高质量**：使用 MiniCPM-V-4.5 Transformers（8B 底座）
 * 获得**最佳平衡**：使用 MiniCPM-V-4 (Q4_K_M) GGUF 模型
 * 获得**最高质量**：使用 MiniCPM-V-4.5 Transformers
 * 面向**低显存**：使用 MiniCPM-V-4.5-int4 或 MiniCPM-V-4 (Q4_0) GGUF

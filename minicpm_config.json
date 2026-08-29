@@ -34,6 +34,10 @@
 		"Video Details": "What are the key details in this video?"
 	},
 	"transformers_models": {
+		"MiniCPM-V-4.6": {
+			"name": "openbmb/MiniCPM-V-4_6",
+			"description": "V4.6 native transformers, qwen3.5-text base, ~2.6GB"
+		},
 		"MiniCPM-V-4.5-int4": {
 			"name": "openbmb/MiniCPM-V-4_5-int4",
 			"description": "V4.5 4-bit quantized version, smaller memory footprint"
