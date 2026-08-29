@@ -2,6 +2,8 @@
 
 ## V1.1.2 (2026-08-29)
 
+> Personal-edition release based on upstream [1038lab/ComfyUI-MiniCPM](https://github.com/1038lab/ComfyUI-MiniCPM) (V1.1.1, commit `2ef7b46`). All V1.1.2 changes below are local additions.
+
 ### New Features
 - **MiniCPM-V-4.6 (Transformers, native)**: first dropdown entry; loads via the native transformers implementation (model_type `minicpmv4_6`, requires `transformers>=5.7`, repo `openbmb/MiniCPM-V-4.6`, ~2.6GB bf16; SigLIP2-400M + Qwen3.5-0.8B hybrid-linear-attention base). The fast path for batch prompt reverse-engineering.
 - **Architecture auto-detection**: the loader reads each checkpoint's local `config.json`. Checkpoints with `auto_map` (<= V4.5) keep the legacy `trust_remote_code` + `model.chat()` path; native architectures (V4.6+) load through `AutoProcessor` + `AutoModelForImageTextToText` + `apply_chat_template`/`generate`.

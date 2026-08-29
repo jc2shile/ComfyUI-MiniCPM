@@ -1,5 +1,8 @@
 # ComfyUI-MiniCPM
 
+> **Upstream / Credit**: this repository is a personal edition based on [1038lab/ComfyUI-MiniCPM](https://github.com/1038lab/ComfyUI-MiniCPM).
+> Local additions (v1.1.2, not part of upstream): MiniCPM-V-4.6 native-transformers support with `downsample_mode` (16x/4x); dynamic GGUF model discovery from `models/LLM/GGUF` with automatic `mmproj*.gguf` pairing; legacy system-prompt fix. See [update.md](update.md#v112-2026-08-29).
+
 A custom ComfyUI node for MiniCPM vision-language models, supporting v4, v4.5, v4.6 and GGUF formats, enabling high-quality image captioning and visual analysis.
 
 **🎉 Now supports MiniCPM-V-4.6! Ultra-efficient native-transformers model (~2.6GB, SigLIP2-400M + Qwen3.5-0.8B), ideal for fast prompt reverse-engineering.**

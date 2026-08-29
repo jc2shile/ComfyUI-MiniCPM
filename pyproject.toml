@@ -15,15 +15,16 @@ dependencies = [
     "accelerate>=0.20.0"
 ]
 
+[project.urls]
+# Upstream original repository: https://github.com/1038lab/ComfyUI-MiniCPM
+Homepage = "https://github.com/1038lab/ComfyUI-MiniCPM"
+Repository = "https://github.com/jc2shile/ComfyUI-MiniCPM"
+
+# Used by Comfy Registry https://comfyregistry.org
 [project.optional-dependencies]
 gguf = ["llama-cpp-python>=0.2.0"]
-    
-[project.urls]
-Repository = "https://github.com/1038lab/ComfyUI-MiniCPM"
-#  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
 PublisherId = "ailab"
 DisplayName = "ComfyUI-MiniCPM"
-
 Icon = ""

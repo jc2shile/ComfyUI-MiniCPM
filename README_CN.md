@@ -1,5 +1,8 @@
 # ComfyUI-MiniCPM
 
+> **上游与鸣谢**：本仓库为个人版，基于原始仓库 [1038lab/ComfyUI-MiniCPM](https://github.com/1038lab/ComfyUI-MiniCPM)。
+> 本地新增改动（v1.1.2，上游未包含）：MiniCPM-V-4.6 原生 transformers 支持及 `downsample_mode`（16x/4x）；GGUF 节点动态扫描 `models/LLM/GGUF` 并自动配对 `mmproj*.gguf`；修复旧版 system prompt 未生效问题。详见 [update.md](update.md#v112-2026-08-29)。
+
 一个用于 MiniCPM 视觉语言模型的 ComfyUI 自定义节点，支持 v4、v4.5、v4.6 及 GGUF 格式，实现高质量图像描述与视觉分析。
 
 **🎉 现在支持 MiniCPM-V-4.6！超轻量原生 transformers 模型（约 2.6GB，SigLIP2-400M + Qwen3.5-0.8B），反推提示词又快又省显存。**
